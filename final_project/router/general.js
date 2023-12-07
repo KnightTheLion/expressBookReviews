@@ -1,63 +1,121 @@
 const express = require('express');
-let books = require("./booksdb.js");
-let isValid = require("./auth_users.js").isValid;
-let users = require("./auth_users.js").users;
+const books = require('./booksdb.js');
+const { isValid, users } = require('./auth_users.js');
 const public_users = express.Router();
 
+public_users.post('/register', (req, res) => {
+  const username = req.body.username;
+  const password = req.body.password;
 
-
-public_users.post("/register", (req,res) => {
-    const username = req.body.username;
-    const password = req.body.password;
-  
+  const registerUser = new Promise((resolve, reject) => {
     if (username && password) {
-      if (!isValid(username)) { 
-        users.push({"username":username,"password":password});
-        return res.status(200).json({message: "User successfully registred. Now you can login"});
+      if (!isValid(username)) {
+        users.push({ username: username, password: password });
+        resolve('User successfully registered. Now you can login');
       } else {
-        return res.status(404).json({message: "User already exists!"});    
+        reject('User already exists!');
       }
-    } 
-    return res.status(404).json({message: "Unable to register user."});
+    } else {
+      reject('Unable to register user.');
+    }
   });
 
-// Get the book list available in the shop
-public_users.get('/',function (req, res) {
-  return res.send(JSON.stringify(books, null, 10))
+  registerUser
+    .then((message) => {
+      res.status(200).json({ message });
+    })
+    .catch((error) => {
+      res.status(404).json({ message: error });
+    });
 });
 
-// Get book details based on ISBN
-public_users.get('/isbn/:isbn',function (req, res) {
-    const isbn = req.params.isbn;
-    return res.send(JSON.stringify(books[isbn], null, 10))
- });
-  
-// Get book details based on author
-public_users.get('/author/:author',function (req, res) {
-  const author = req.params.author;
-  for(let key in books){
-      if(books[key].author === author){
-          return res.send(JSON.stringify(books[key], null, 4))
-      }
-  }
-  return res.status(404).send("Author not found");
+const getBookList = () => {
+  return new Promise((resolve) => {
+    resolve(JSON.stringify(books, null, 10));
+  });
+};
+
+public_users.get('/', function (req, res) {
+  getBookList()
+    .then((bookList) => {
+      res.send(bookList);
+    });
 });
 
-// Get all books based on title
-public_users.get('/title/:title',function (req, res) {
-  const title = req.params.title;
-  for(let key in books){
-      if(books[key].title === title){
-          return res.send(JSON.stringify(books[key], null, 4))
-      }
-  }
-  return res.status(404).send("Title not found")
-});
+const getBookByISBN = (isbn) => {
+  return new Promise((resolve) => {
+    resolve(JSON.stringify(books[isbn], null, 10));
+  });
+};
 
-//  Get book review
-public_users.get('/review/:isbn',function (req, res) {
+public_users.get('/isbn/:isbn', function (req, res) {
   const isbn = req.params.isbn;
-  return res.send(JSON.stringify(books[isbn].reviews))
+
+  getBookByISBN(isbn)
+    .then((bookDetails) => {
+      res.send(bookDetails);
+    });
+});
+
+const getBookByAuthor = (author) => {
+  return new Promise((resolve, reject) => {
+    for (let key in books) {
+      if (books[key].author === author) {
+        resolve(JSON.stringify(books[key], null, 4));
+      }
+    }
+    reject('Author not found');
+  });
+};
+
+public_users.get('/author/:author', function (req, res) {
+  const author = req.params.author;
+
+  getBookByAuthor(author)
+    .then((bookDetails) => {
+      res.send(bookDetails);
+    })
+    .catch((error) => {
+      res.status(404).send(error);
+    });
+});
+
+const getBookByTitle = (title) => {
+  return new Promise((resolve, reject) => {
+    for (let key in books) {
+      if (books[key].title === title) {
+        resolve(JSON.stringify(books[key], null, 4));
+      }
+    }
+    reject('Title not found');
+  });
+};
+
+public_users.get('/title/:title', function (req, res) {
+  const title = req.params.title;
+
+  getBookByTitle(title)
+    .then((bookDetails) => {
+      res.send(bookDetails);
+    })
+    .catch((error) => {
+      res.status(404).send(error);
+    });
+});
+
+const getBookReview = (isbn) => {
+  return new Promise((resolve) => {
+    resolve(JSON.stringify(books[isbn].reviews));
+  });
+};
+
+public_users.get('/review/:isbn', function (req, res) {
+  const isbn = req.params.isbn;
+
+  getBookReview(isbn)
+    .then((reviews) => {
+      res.send(reviews);
+    });
 });
 
 module.exports.general = public_users;
